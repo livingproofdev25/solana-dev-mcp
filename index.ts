@@ -10,7 +10,8 @@ const server = new McpServer({
 });
 
 // Initialize Solana connection
-const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
+const rpcUrl = process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta");
+const connection = new Connection(rpcUrl, "confirmed");
 
 // Solana RPC Methods as Tools
 
@@ -18,7 +19,7 @@ const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
 server.tool(
     "getAccountInfo",
     "Used to look up account info by public key (32 byte base58 encoded address)",
-    { publicKey: z.string() },
+    { publicKey: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/, "Invalid base58 Solana address") },
     async ({ publicKey }) => {
         try {
             const pubkey = new PublicKey(publicKey);
@@ -27,8 +28,10 @@ server.tool(
                 content: [{ type: "text", text: JSON.stringify(accountInfo, null, 2) }]
             };
         } catch (error) {
+            console.error(`Tool error:`, error);
             return {
-                content: [{ type: "text", text: `Error: ${(error as Error).message}` }]
+                content: [{ type: "text", text: `Error: Failed to process request. Check input parameters.` }],
+                isError: true,
             };
         }
     }
@@ -38,7 +41,7 @@ server.tool(
 server.tool(
     "getBalance",
     "Used to look up balance by public key (32 byte base58 encoded address)",
-    { publicKey: z.string() },
+    { publicKey: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/, "Invalid base58 Solana address") },
     async ({ publicKey }) => {
         try {
             const pubkey = new PublicKey(publicKey);
@@ -47,8 +50,10 @@ server.tool(
                 content: [{ type: "text", text: `${balance / LAMPORTS_PER_SOL} SOL (${balance} lamports)` }]
             };
         } catch (error) {
+            console.error(`Tool error:`, error);
             return {
-                content: [{ type: "text", text: `Error: ${(error as Error).message}` }]
+                content: [{ type: "text", text: `Error: Failed to process request. Check input parameters.` }],
+                isError: true,
             };
         }
     }
@@ -58,7 +63,7 @@ server.tool(
 server.tool(
     "getMinimumBalanceForRentExemption",
     "Used to look up minimum balance required for rent exemption by data size",
-    { dataSize: z.number() },
+    { dataSize: z.number().int().min(0).max(10_000_000) },
     async ({ dataSize }) => {
         try {
             const minBalance = await connection.getMinimumBalanceForRentExemption(dataSize);
@@ -66,8 +71,10 @@ server.tool(
                 content: [{ type: "text", text: `${minBalance / LAMPORTS_PER_SOL} SOL (${minBalance} lamports)` }]
             };
         } catch (error) {
+            console.error(`Tool error:`, error);
             return {
-                content: [{ type: "text", text: `Error: ${(error as Error).message}` }]
+                content: [{ type: "text", text: `Error: Failed to process request. Check input parameters.` }],
+                isError: true,
             };
         }
     }
@@ -76,7 +83,7 @@ server.tool(
 // Get Transaction
 server.tool("getTransaction",
     "Used to look up transaction by signature (64 byte base58 encoded string)",
-    { signature: z.string() },
+    { signature: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{64,88}$/, "Invalid transaction signature") },
     async ({ signature }) => {
         try {
             const transaction = await connection.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
@@ -84,8 +91,10 @@ server.tool("getTransaction",
                 content: [{ type: "text", text: JSON.stringify(transaction, null, 2) }]
             };
         } catch (error) {
+            console.error(`Tool error:`, error);
             return {
-                content: [{ type: "text", text: `Error: ${(error as Error).message}` }]
+                content: [{ type: "text", text: `Error: Failed to process request. Check input parameters.` }],
+                isError: true,
             };
         }
     }
